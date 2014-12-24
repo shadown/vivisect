@@ -12,7 +12,7 @@ import envi.memcanvas.renderers as e_canvas_rend
 
 class OpcodeRenderer(e_canvas.MemoryRenderer):
 
-    def __init__(self, trace, arch=envi.ARCH_DEFAULT):
+    def __init__(self, trace, arch=None):
         self.arch = arch
         self.emu_cache = {} # arch_num: emu instance
         self.pwidth = trace.getPointerSize()

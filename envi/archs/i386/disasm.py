@@ -613,6 +613,29 @@ MODE_16 = 0
 MODE_32 = 1
 MODE_64 = 2
 
+import envi.disasm as e_disasm
+
+class i386EnviDisasm(e_disasm.Disasm):
+
+    def __init__(self):
+        e_disasm.Disasm.__init__(self,'i386')
+
+        self.cpumode = MODE_32
+        self._dis_prefixes = i386_prefixes
+
+        self._dis_amethods = [ None for x in range(1 + (opcode86.ADDRMETH_LAST>>16)) ]
+        self._dis_amethods[opcode86.ADDRMETH_J>>16] = self._ameth_j
+
+    #def ameth_j(self, bytez, offset, tsize, prefixes, operflags):
+        #imm = e_bits.parsebytes(bytez, offset, tsize, sign=True)
+        #return (tsize, i386PcRelOper(imm, tsize))
+
+    def _parse_modrm(self, byte, pfx):
+        mod = (byte >> 6) & 0x3
+        reg = (byte >> 3) & 0x7
+        rm = byte & 0x7
+        return (mod,reg,rm)
+
 class i386Disasm:
 
     def __init__(self, mode=MODE_32):
@@ -794,6 +817,15 @@ class i386Disasm:
         #print "OPERTYPE",hex(opertype)
         #print "SIZELIST",repr(sizelist)
         return sizelist[mode]
+
+    def _parse_prefixes(self, data, off):
+        pfx = 0
+        while True:
+            p = self._dis_prefixes[ ord( data[off] ) ]
+            if p == None:
+                break
+            off += 1
+        return off,pfx
 
     def disasm(self, bytez, offset, va):
 

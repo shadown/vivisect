@@ -98,9 +98,9 @@ import vivisect.impemu.platarch.i386 as v_i_i386
 class Windowsi386Emulator(WindowsMixin, v_i_i386.i386WorkspaceEmulator):
 
     taintregs = [ 
-        e_i386.REG_EAX, e_i386.REG_ECX, e_i386.REG_EDX,
-        e_i386.REG_EBX, e_i386.REG_EBP, e_i386.REG_ESI,
-        e_i386.REG_EDI,
+        #e_i386.REG_EAX, e_i386.REG_ECX, e_i386.REG_EDX,
+        #e_i386.REG_EBX, e_i386.REG_EBP, e_i386.REG_ESI,
+        #e_i386.REG_EDI,
     ]
 
     def __init__(self, vw, logwrite=False, logread=False):

@@ -54,10 +54,10 @@ class MSx64Call(envi.CallingConvention):
     TODO: this is a compiler option.  We should have another convention if
     this is not specified.
     '''
-    arg_def = [(CC_REG, REG_RCX), (CC_REG, REG_RDX), (CC_REG, REG_R8),
-                (CC_REG, REG_R9), (CC_STACK_INF, 8*4+8),]
+    arg_def = [(CC_REG, "rcx"), (CC_REG, "rdx"), (CC_REG, "r8"),
+                (CC_REG, "r9"), (CC_STACK_INF, 8*4+8),]
     retaddr_def = (CC_STACK, 0)
-    retval_def = (CC_REG, REG_RAX)
+    retval_def = (CC_REG, "rax")
     flags = CC_CALLER_CLEANUP
     align = 8
     pad = 8*4
@@ -66,11 +66,11 @@ class SysVAmd64Call(envi.CallingConvention):
     '''
     Does not have shadow space like MSx64.
     '''
-    arg_def = [(CC_REG, REG_RDI), (CC_REG, REG_RSI), (CC_REG, REG_RDX),
-                (CC_REG, REG_RCX), (CC_REG, REG_R8), (CC_REG, REG_R9),
+    arg_def = [(CC_REG, "rdi"), (CC_REG, "rsi"), (CC_REG, "rdx"),
+                (CC_REG, "rcx"), (CC_REG, "r8"), (CC_REG, "r9"),
                     (CC_STACK_INF, 8),]
     retaddr_def = (CC_STACK, 0)
-    retval_def = (CC_REG, REG_RAX)
+    retval_def = (CC_REG, "rax")
     flags = CC_CALLEE_CLEANUP
     align = 8
     pad = 0
@@ -79,8 +79,8 @@ class SysVAmd64SystemCall(SysVAmd64Call):
     '''
     For system calls, R10 is used instead of RCX.
     '''
-    arg_def = [(CC_REG, REG_RDI), (CC_REG, REG_RSI), (CC_REG, REG_RDX),
-                (CC_REG, REG_R10), (CC_REG, REG_R8), (CC_REG, REG_R9),
+    arg_def = [(CC_REG, "rdi"), (CC_REG, "rsi"), (CC_REG, "rdx"),
+                (CC_REG, "r10"), (CC_REG, "r8"), (CC_REG, "r9"),
                 (CC_STACK_INF, 8),]
 
 sysvamd64call = SysVAmd64Call()
@@ -89,8 +89,8 @@ msx64call = MSx64Call()
 
 class Amd64Emulator(Amd64RegisterContext, e_i386.IntelEmulator):
 
-    flagidx = REG_EFLAGS
-    accumreg = { 1:REG_AL, 2:REG_AX, 4:REG_EAX, 8:REG_RAX }
+    flagidx = "eflags"
+    accumreg = { 1:"al", 2:"ax", 4:"eax", 8:"rax" }
 
     def __init__(self):
 
@@ -106,15 +106,15 @@ class Amd64Emulator(Amd64RegisterContext, e_i386.IntelEmulator):
         self.addCallingConvention("msx64call", msx64call)
 
     def doPush(self, val):
-        rsp = self.getRegister(REG_RSP)
+        rsp = self.getRegister("rsp")
         rsp -= 8
         self.writeMemValue(rsp, val, 8)
-        self.setRegister(REG_RSP, rsp)
+        self.setRegister("rsp", rsp)
 
     def doPop(self):
-        rsp = self.getRegister(REG_RSP)
+        rsp = self.getRegister("rsp")
         val = self.readMemValue(rsp, 8)
-        self.setRegister(REG_RSP, rsp+8)
+        self.setRegister("rsp", rsp+8)
         return val
 
     def i_movsxd(self, op):

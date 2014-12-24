@@ -7,26 +7,72 @@ import types
 import struct
 import platform
 
+def regdef(**kwargs):
+    ret = {
+        'defs':{
+            'pc':None,  # whats the name of the program counter?
+            'sp':None,  # whats the name of the stack counter?
+        },
+        'regs':[],      # (name,width) tuples
+        'metas':[],     # (name, realname, rshift, rmask)
+        'aliases':[],   # (alias,realname)
+    }
+    ret.update(kwargs)
+    return ret
+
+def opdef(**kwargs):
+    ret = {
+        'brk':None,
+        'nop':None,
+    }
+    ret.update(kwargs)
+    return ret
+
 def archinfo(**kwargs):
     a = {
-        'ptrsize':None,
-        'aliases':(),
-        'defcalls':{},
         'nop':None,
         'brk':None,
+        'opdef':opdef(),    # opcode bytes for "well defined" ops
+        'regdef':regdef(),  # registers etc...
+        'ptrsize':None,     # how wide is a pointer?
+        'aliases':(),       # aliases for the arch name
+        'defcalls':{},
     }
     a.update(kwargs)
     return a
 
+def h2b(x):
+    return x.decode('hex')
+
 archinfo_byname = {
     'amd64':archinfo(
+        opdef=opdef(
+            nop=h2b('90'),
+            brk=h2b('cc'),
+        ),
         ptrsize=8,
         aliases=('x86_64',),
         defcalls={
             'windows':'amd64call',
+            'linux':'amd64sysvcall',
         },
-        nop='90',
-        brk='cc',
+        regdef=regdef(
+            regs=[
+                ('rip',64),('rsp',64),('rbp',64),
+                ('rax',64), ('rbx',64), ('rcx',64), ('rdx',64), ('rsi',64), ('rdi',64),
+            ],
+            defs={'pc':'rip','sp':'rsp'},
+            metas = [
+                ('eax','rax',0,32), ('ebx','rbx',0,32), ('ecx','rcx',0,32),
+                ('edx','rdx',0,32), ('esi','rsi',0,32), ('edi','rdi',0,32),
+
+                ('ax','rax',0,16), ('bx','rbx',0,16), ('cx','rcx',0,16),
+                ('dx','rdx',0,16), ('si','rsi',0,16), ('di','rdi',0,16),
+            ],
+            aliases = [
+                ('_pc','rip'),('_sp','rsp'),
+            ],
+        ),
     ),
     'i386':archinfo(
         ptrsize=4,
@@ -35,8 +81,32 @@ archinfo_byname = {
             'linux':'cdecl',
             'windows':'stdcall',
         },
-        nop='90',
-        brk='cc',
+        opdef=opdef(
+            nop=h2b('90'),
+            brk=h2b('cc'),
+        ),
+        regdef=regdef(
+            regs = [
+                ("eax",32),("ecx",32),("edx",32),("ebx",32),("esp",32),("ebp",32),("esi",32),("edi",32), # general regs
+                ("mm0",64),("mm1",64), ("mm2",64), ("mm3",64), ("mm4",64), ("mm5",64), ("mm6",64), ("mm7",64), # 
+                ("xmm0",128),("xmm1",128),("xmm2",128),("xmm3",128),("xmm4",128),("xmm5",128),("xmm6",128),("xmm7",128), # simd regs
+                ("debug0",32),("debug1",32),("debug2",32),("debug3",32),("debug4",32),("debug5",32),("debug6",32),("debug7",32), # debug regs
+                ("ctrl0",32),("ctrl1",32),("ctrl2",32),("ctrl3",32),("ctrl4",32),("ctrl5",32),("ctrl6",32),("ctrl7",32), # control regs
+                ("test0", 32),("test1", 32),("test2", 32),("test3", 32),("test4", 32),("test5", 32),("test6", 32),("test7", 32), # test regs
+                ("es", 16),("cs",16),("ss",16),("ds",16),("fs",16),("gs",16), # segment regs
+                ("st0", 128),("st1", 128),("st2", 128),("st3", 128),("st4", 128),("st5", 128),("st6", 128),("st7", 128), # fpu regs
+                ("eflags", 32), ("eip", 32),
+            ],
+            metas = [
+                ("ax", "eax", 0, 16), ("bx", "ebx", 0, 16), ("cx", "ecx", 0, 16), ("dx", "edx", 0, 16),
+                ("sp", "esp", 0, 16), ("bp", "ebp", 0, 16), ("si", "esi", 0, 16), ("di", "edi", 0, 16),
+                ("al", "eax", 0, 8), ("bl", "ebx", 0, 8), ("cl", "ecx", 0, 8), ("dl", "edx", 0, 8),
+                ("ah", "eax", 8, 8), ("bh", "ebx", 8, 8), ("ch", "ecx", 8, 8), ("dh", "edx", 8, 8),
+            ],
+            aliases = [
+                ('_pc','eip'),('_sp','esp'),
+            ],
+        ),
     ),
     'arm':archinfo(
         ptrsize=4,
@@ -57,36 +127,36 @@ def getArchInfo(arch,prop=None):
 
 # TODO: move into const.py
 # Parsed Opcode Formats
-ARCH_DEFAULT     = 0 << 16   # arch 0 is whatever the mem object has as default
-ARCH_I386        = 1 << 16
-ARCH_AMD64       = 2 << 16
-ARCH_ARMV7       = 3 << 16
-ARCH_THUMB16     = 4 << 16
-ARCH_THUMB2      = 5 << 16
-ARCH_MSP430      = 6 << 16
-ARCH_MASK        = 0xffff0000   # Masked into IF_FOO and BR_FOO values
+#ARCH_DEFAULT     = 0 << 16   # arch 0 is whatever the mem object has as default
+#ARCH_I386        = 1 << 16
+#ARCH_AMD64       = 2 << 16
+#ARCH_ARMV7       = 3 << 16
+#ARCH_THUMB16     = 4 << 16
+#ARCH_THUMB2      = 5 << 16
+#ARCH_MSP430      = 6 << 16
+#ARCH_MASK        = 0xffff0000   # Masked into IF_FOO and BR_FOO values
 
-arch_names = {
-    ARCH_DEFAULT:   'default',
-    ARCH_I386:      'i386',
-    ARCH_AMD64:     'amd64',
-    ARCH_ARMV7:     'arm',
-    ARCH_THUMB16:   'thumb16',
-    ARCH_THUMB2:    'thumb2',
-    ARCH_MSP430:    'msp430',
-}
+#arch_names = {
+    #ARCH_DEFAULT:   'default',
+    #ARCH_I386:      'i386',
+    #ARCH_AMD64:     'amd64',
+    #ARCH_ARMV7:     'arm',
+    #ARCH_THUMB16:   'thumb16',
+    #ARCH_THUMB2:    'thumb2',
+    #ARCH_MSP430:    'msp430',
+#}
 
-arch_by_name = {
-    'default':  ARCH_DEFAULT,
-    'i386':     ARCH_I386,
-    'amd64':    ARCH_AMD64,
-    'arm':      ARCH_ARMV7,
-    'armv6l':   ARCH_ARMV7,
-    'armv7l':   ARCH_ARMV7,
-    'thumb16':  ARCH_THUMB16,
-    'thumb2':   ARCH_THUMB2,
-    'msp430':   ARCH_MSP430,
-}
+#arch_by_name = {
+    #'default':  ARCH_DEFAULT,
+    #'i386':     ARCH_I386,
+    #'amd64':    ARCH_AMD64,
+    #'arm':      ARCH_ARMV7,
+    #'armv6l':   ARCH_ARMV7,
+    #'armv7l':   ARCH_ARMV7,
+    #'thumb16':  ARCH_THUMB16,
+    #'thumb2':   ARCH_THUMB2,
+    #'msp430':   ARCH_MSP430,
+#}
 
 # Instruction flags (The first 8 bits are reserved for arch independant use)
 IF_NOFALL = 0x01 # Set if this instruction does *not* fall through
@@ -1088,17 +1158,17 @@ arch_xlate_64 = {
     '':'amd64', # And again....
 }
 
-def getArchByName(archname):
-    '''
-    Get the architecture constant by the humon name.
-    '''
-    return arch_by_name.get(archname)
+#def getArchByName(archname):
+    #'''
+    #Get the architecture constant by the humon name.
+    #'''
+    #return arch_by_name.get(archname)
 
-def getArchById(archid):
-    '''
-    Get the architecture name by the constant.
-    '''
-    return arch_names.get(archid)
+#def getArchById(archid):
+    #'''
+    #Get the architecture name by the constant.
+    #'''
+    #return arch_names.get(archid)
 
 def getCurrentArch():
     """
@@ -1127,6 +1197,10 @@ def getCurrentPlat():
         plat = 'windows'
 
     return plat
+
+# some nice helper module locals...
+curarch = getCurrentArch()
+curplat = getCurrentPlat()
 
 def getArchModule(name=None):
     """
@@ -1165,28 +1239,28 @@ def getArchModule(name=None):
     else:
         raise ArchNotImplemented(name)
 
-def getArchModules(default=ARCH_DEFAULT):
-    '''
-    Retrieve a default array of arch modules ( where index 0 is
-    also the "named" or "default" arch module.
-    '''
-    import envi.archs.arm as e_arm
-    import envi.archs.i386 as e_i386
-    import envi.archs.amd64 as e_amd64
-    import envi.archs.thumb16 as e_thumb16
-    import envi.archs.msp430 as e_msp430
+#def getArchModules(default=ARCH_DEFAULT):
+    #'''
+    #Retrieve a default array of arch modules ( where index 0 is
+    #also the "named" or "default" arch module.
+    #'''
+    #import envi.archs.arm as e_arm
+    #import envi.archs.i386 as e_i386
+    #import envi.archs.amd64 as e_amd64
+    #import envi.archs.thumb16 as e_thumb16
+    #import envi.archs.msp430 as e_msp430
 
-    archs = [ None, ]
+    #archs = [ None, ]
 
     # These must be in ARCH_FOO order
-    archs.append( e_i386.i386Module() )
-    archs.append( e_amd64.Amd64Module() )
-    archs.append( e_arm.ArmModule() )
-    archs.append( e_thumb16.Thumb16Module() )
-    archs.append( e_thumb16.Thumb2Module() )
-    archs.append( e_msp430.Msp430Module() )
+    #archs.append( e_i386.i386Module() )
+    #archs.append( e_amd64.Amd64Module() )
+    #archs.append( e_arm.ArmModule() )
+    #archs.append( e_thumb16.Thumb16Module() )
+    #archs.append( e_thumb16.Thumb2Module() )
+    #archs.append( e_msp430.Msp430Module() )
 
     # Set the default module ( or None )
-    archs[ ARCH_DEFAULT ] = archs[ default >> 16 ]
+    #archs[ ARCH_DEFAULT ] = archs[ default >> 16 ]
 
-    return archs
+    #return archs

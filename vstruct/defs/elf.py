@@ -1,33 +1,6 @@
 import vstruct
 from vstruct.primitives import *
 
-EI_NIDENT = 4
-EI_PADLEN = 7
-
-class Elf32(vstruct.VStruct):
-    def __init__(self):
-        vstruct.VStruct.__init__(self)
-        self.e_ident       = v_bytes(EI_NIDENT)
-        self.e_class       = v_uint8()
-        self.e_data        = v_uint8()
-        self.e_fileversion = v_uint8()
-        self.e_osabi       = v_uint8()
-        self.e_abiversio   = v_uint8()
-        self.e_pad         = v_bytes(EI_PADLEN)
-        self.e_type        = v_uint16()
-        self.e_machine     = v_uint16()
-        self.e_version     = v_uint32()
-        self.e_entry       = v_uint32()
-        self.e_phoff       = v_uint32()
-        self.e_shoff       = v_uint32()
-        self.e_flags       = v_uint32()
-        self.e_ehsize      = v_uint16()
-        self.e_phentsize   = v_uint16()
-        self.e_phnum       = v_uint16()
-        self.e_shentsize   = v_uint16()
-        self.e_shnum       = v_uint16()
-        self.e_shstrndx    = v_uint16()
-
 class Elf32Section(vstruct.VStruct):
     def __init__(self):
         vstruct.VStruct.__init__(self)
@@ -81,8 +54,14 @@ class Elf32Dynamic(vstruct.VStruct):
         self.d_tag   = v_uint32()
         self.d_value = v_uint32()
 
+EI_NIDENT = 4
+EI_PADLEN = 7
 
-class Elf64(vstruct.VStruct):
+class Elf32(vstruct.VStruct):
+    _elf_pheader = Elf32Pheader
+    _elf_section = Elf32Section
+    _elf_dynamic = Elf32Dynamic
+
     def __init__(self):
         vstruct.VStruct.__init__(self)
         self.e_ident       = v_bytes(EI_NIDENT)
@@ -95,9 +74,9 @@ class Elf64(vstruct.VStruct):
         self.e_type        = v_uint16()
         self.e_machine     = v_uint16()
         self.e_version     = v_uint32()
-        self.e_entry       = v_uint64()
-        self.e_phoff       = v_uint64()
-        self.e_shoff       = v_uint64()
+        self.e_entry       = v_uint32()
+        self.e_phoff       = v_uint32()
+        self.e_shoff       = v_uint32()
         self.e_flags       = v_uint32()
         self.e_ehsize      = v_uint16()
         self.e_phentsize   = v_uint16()
@@ -163,6 +142,34 @@ class Elf64Dynamic(Elf32Dynamic):
         self.d_tag   = v_uint64()
         self.d_value = v_uint64()
 
+class Elf64(vstruct.VStruct):
+    _elf_section = Elf64Section
+    _elf_pheader = Elf64Pheader
+    _elf_dynamic = Elf64Dynamic
+
+    def __init__(self):
+        vstruct.VStruct.__init__(self)
+        self.e_ident       = v_bytes(EI_NIDENT)
+        self.e_class       = v_uint8()
+        self.e_data        = v_uint8()
+        self.e_fileversion = v_uint8()
+        self.e_osabi       = v_uint8()
+        self.e_abiversio   = v_uint8()
+        self.e_pad         = v_bytes(EI_PADLEN)
+        self.e_type        = v_uint16()
+        self.e_machine     = v_uint16()
+        self.e_version     = v_uint32()
+        self.e_entry       = v_uint64()
+        self.e_phoff       = v_uint64()
+        self.e_shoff       = v_uint64()
+        self.e_flags       = v_uint32()
+        self.e_ehsize      = v_uint16()
+        self.e_phentsize   = v_uint16()
+        self.e_phnum       = v_uint16()
+        self.e_shentsize   = v_uint16()
+        self.e_shnum       = v_uint16()
+        self.e_shstrndx    = v_uint16()
+
 class ElfNote(vstruct.VStruct):
 
     def __init__(self):
@@ -180,3 +187,4 @@ class ElfNote(vstruct.VStruct):
         elems = [ v_uint32() for i in xrange(self.descsz / 4) ]
         self.desc = vstruct.VArray(elems=elems)
 
+elfsize = len(Elf64()) # the max header size is min read

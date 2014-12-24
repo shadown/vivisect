@@ -395,6 +395,15 @@ class VStruct(vs_prims.v_base):
             ret += "%.8x (%.2d)%s %s: %s\n" % (va+off, len(field), " "*(indent*2), name, rstr)
         return ret
 
+    @classmethod
+    def iterbytes(cls,buf):
+        offset = 0
+        buflen = len(buf)
+        while offset < buflen:
+            s = cls()
+            offset = s.vsParse(buf,offset=offset)
+            yield offset,s
+
 class VArray(VStruct):
 
     def __init__(self, elems=()):

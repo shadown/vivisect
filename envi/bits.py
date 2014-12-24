@@ -24,6 +24,9 @@ s_maxes[0] = 0
 b_masks = [ (2**i)-1 for i in range(MAX_WORD*8) ]
 b_masks[0] = 0
 
+def bitmask(value,size):
+    return value & b_masks[size]
+
 def unsigned(value, size):
     """
     Make a value unsigned based on it's size.

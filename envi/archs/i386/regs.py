@@ -46,50 +46,50 @@ def getRegOffset(regs, regname):
     raise Exception("getRegOffset doesn't know about: %s" % regname)
 
 # dynamically create REG_EAX and the like in our module
-l = locals()
-e_reg.addLocalEnums(l, i386regs)
+#l = locals()
+#e_reg.addLocalEnums(l, i386regs)
 
-i386meta = [
-    ("ax", REG_EAX, 0, 16),
-    ("cx", REG_ECX, 0, 16),
-    ("dx", REG_EDX, 0, 16),
-    ("bx", REG_EBX, 0, 16),
-    ("sp", REG_ESP, 0, 16),
-    ("bp", REG_EBP, 0, 16),
-    ("si", REG_ESI, 0, 16),
-    ("di", REG_EDI, 0, 16),
+#i386meta = [
+    #("ax", REG_EAX, 0, 16),
+    #("cx", REG_ECX, 0, 16),
+    #("dx", REG_EDX, 0, 16),
+    #("bx", REG_EBX, 0, 16),
+    #("sp", REG_ESP, 0, 16),
+    #("bp", REG_EBP, 0, 16),
+    #("si", REG_ESI, 0, 16),
+    #("di", REG_EDI, 0, 16),
 
-    ("al", REG_EAX, 0, 8),
-    ("cl", REG_ECX, 0, 8),
-    ("dl", REG_EDX, 0, 8),
-    ("bl", REG_EBX, 0, 8),
+    #("al", REG_EAX, 0, 8),
+    #("cl", REG_ECX, 0, 8),
+    #("dl", REG_EDX, 0, 8),
+    #("bl", REG_EBX, 0, 8),
 
-    ("ah", REG_EAX, 8, 8),
-    ("ch", REG_ECX, 8, 8),
-    ("dh", REG_EDX, 8, 8),
-    ("bh", REG_EBX, 8, 8),
-]
+    #("ah", REG_EAX, 8, 8),
+    #("ch", REG_ECX, 8, 8),
+    #("dh", REG_EDX, 8, 8),
+    #("bh", REG_EBX, 8, 8),
+#]
 
-statmetas = [
-        ('CF', REG_EFLAGS, 0, 1, 'Carry Flag'),
-        ('PF', REG_EFLAGS, 2, 1, 'Parity Flag'),
-        ('AF', REG_EFLAGS, 4, 1, 'Adjust Flag'),
-        ('ZF', REG_EFLAGS, 6, 1, 'Zero Flag'),
-        ('SF', REG_EFLAGS, 7, 1, 'Sign Flag'),
-        ('TF', REG_EFLAGS, 8, 1, 'Trap Flag'),
-        ('IF', REG_EFLAGS, 9, 1, 'Interrupt Enable Flag'),
-        ('DF', REG_EFLAGS, 10, 1, 'Direction Flag'),
-        ('OF', REG_EFLAGS, 11, 1, 'Overflow Flag'),
-        ]
+#statmetas = [
+        #('CF', REG_EFLAGS, 0, 1, 'Carry Flag'),
+        #('PF', REG_EFLAGS, 2, 1, 'Parity Flag'),
+        #('AF', REG_EFLAGS, 4, 1, 'Adjust Flag'),
+        #('ZF', REG_EFLAGS, 6, 1, 'Zero Flag'),
+        #('SF', REG_EFLAGS, 7, 1, 'Sign Flag'),
+        #('TF', REG_EFLAGS, 8, 1, 'Trap Flag'),
+        #('IF', REG_EFLAGS, 9, 1, 'Interrupt Enable Flag'),
+        #('DF', REG_EFLAGS, 10, 1, 'Direction Flag'),
+        #('OF', REG_EFLAGS, 11, 1, 'Overflow Flag'),
+        #]
 
-def getEflagsFields(regval):
-    ret = []
-    for name,_,shift,bits,desc in statmetas:
-        ret.append( (name, regval >> shift & 1) )
-    return ret
+#def getEflagsFields(regval):
+    #ret = []
+    #for name,_,shift,bits,desc in statmetas:
+        #ret.append( (name, regval >> shift & 1) )
+    #return ret
 
-e_reg.addLocalStatusMetas(l, i386meta, statmetas, 'EFLAGS')
-e_reg.addLocalMetas(l, i386meta)
+#e_reg.addLocalStatusMetas(l, i386meta, statmetas, 'EFLAGS')
+#e_reg.addLocalMetas(l, i386meta)
 
 class i386RegisterContext(e_reg.RegisterContext):
     def __init__(self):

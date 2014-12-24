@@ -38,6 +38,8 @@ class PageLookup:
     # __getslice__
     # __setslice__
 
+print("DELETE envi/pagelookup.py")
+
 class MapLookup:
 
     '''

@@ -4,9 +4,9 @@ import vivisect.impemu.emulator as v_i_emulator
 class i386WorkspaceEmulator(v_i_emulator.WorkspaceEmulator, e_i386.IntelEmulator):
 
     taintregs = [ 
-        e_i386.REG_EAX, e_i386.REG_ECX, e_i386.REG_EDX,
-        e_i386.REG_EBX, e_i386.REG_EBP, e_i386.REG_ESI,
-        e_i386.REG_EDI,
+        #e_i386.REG_EAX, e_i386.REG_ECX, e_i386.REG_EDX,
+        #e_i386.REG_EBX, e_i386.REG_EBP, e_i386.REG_ESI,
+        #e_i386.REG_EDI,
     ]
 
     def __init__(self, vw, logwrite=False, logread=False):

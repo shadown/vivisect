@@ -30,40 +30,43 @@ dbg_types = {
 
 class i386Trace(vt_arch_base.TraceArch):
 
-    archsize = 4
-    archname = 'i386'
+    def _plat_curbreak(self):
+        return self.breaks.get( self.getpc() - 1 )
+
+    #archsize = 4
+    #archname = 'i386'
 
     #def _arch_init(self):
         #self.archname = 'i386'
         #self.setMeta('architecture','i386')
 
-    def _arch_init(self):
-        self._arch_dbgregs = [0, 0, 0, 0]
+    #def _arch_init(self):
+        #self._arch_dbgregs = [0, 0, 0, 0]
 
-    def _arch_bpinit(self, addr, info):
-        self.setmem(addr,info['saved'])
+    #def _arch_bpinit(self, addr, info):
+        #self.setmem(addr,info['saved'])
         
-    def _arch_bpfini(self, addr, info):
-        info['saved'] = self.getmem(addr,1)
-        self.setmem(addr,'\xcc')
+    #def _arch_bpfini(self, addr, info):
+        #info['saved'] = self.getmem(addr,1)
+        #self.setmem(addr,'\xcc')
 
     def _arch_checkwatchs(self):
         dbg6 = self.getreg('debug6')
 
-    def archCheckWatchpoints(self):
-        regs = self.getRegisters()
-        status = regs.get(dbg_status)
+    #def archCheckWatchpoints(self):
+        #regs = self.getRegisters()
+        #status = regs.get(dbg_status)
         #print "STATUS %.8x" % status
-        if status == None:
-            return None
-        x = status & 0x0f
-        if not x:
-            return None
+        #if status == None:
+            #return None
+        #x = status & 0x0f
+        #if not x:
+            #return None
 
-        for i in range(4):
-            if (x >> i) & 1:
-                return self._arch_dbgregs[i]
-        return None
+        #for i in range(4):
+            #if (x >> i) & 1:
+                #return self._arch_dbgregs[i]
+        #return None
 
     def _arch_watchinit(self, addr, size=4, perms="rw"):
 

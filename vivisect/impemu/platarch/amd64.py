@@ -14,9 +14,9 @@ non_use_mnems = ('push', )
 class Amd64WorkspaceEmulator(v_i_emulator.WorkspaceEmulator, e_amd64.Amd64Emulator):
 
     taintregs = [ 
-        e_amd64.REG_RAX, e_amd64.REG_RCX, e_amd64.REG_RDX,
-        e_amd64.REG_RBX, e_amd64.REG_RBP, e_amd64.REG_RSI,
-        e_amd64.REG_RDI, e_amd64.REG_R8,  e_amd64.REG_R9,
+        #e_amd64.REG_RAX, e_amd64.REG_RCX, e_amd64.REG_RDX,
+        #e_amd64.REG_RBX, e_amd64.REG_RBP, e_amd64.REG_RSI,
+        #e_amd64.REG_RDI, e_amd64.REG_R8,  e_amd64.REG_R9,
     ]
 
     def __init__(self, vw, logwrite=False, logread=False):

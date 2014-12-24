@@ -39,10 +39,10 @@ statmetas = [
         ('V',       REG_SR, 8, 1, 'Overflow Flag'),
         ]
 
-l = locals()
-e_reg.addLocalEnums(l, reginfo)
+#l = locals()
+#e_reg.addLocalEnums(l, reginfo)
 
-e_reg.addLocalStatusMetas(l, priregisters, statmetas, 'SR')
+#e_reg.addLocalStatusMetas(l, priregisters, statmetas, 'SR')
 #e_reg.addLocalMetas(l, i386meta)
 
 class Msp430RegisterContext(e_reg.RegisterContext):

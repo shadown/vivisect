@@ -150,3 +150,5 @@ class VStructTest(unittest.TestCase):
         v.vsParse('A' * 20)
         self.assertEqual( v[2], 0x41 )
 
+    def test_iterbytes(self):
+        raise "WRITE ME"

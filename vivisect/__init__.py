@@ -812,7 +812,7 @@ class VivWorkspace(e_mem.MemoryObject, viv_base.VivWorkspaceCore):
     #
     # Opcode API
     #
-    def parseOpcode(self, va, arch=envi.ARCH_DEFAULT):
+    def parseOpcode(self, va, arch=None):
         '''
         Parse an opcode from the specified virtual address.
 
@@ -831,7 +831,7 @@ class VivWorkspace(e_mem.MemoryObject, viv_base.VivWorkspaceCore):
 
         return self.imem_archs[ (arch & envi.ARCH_MASK) >> 16 ].archParseOpcode(b, 0, va)
 
-    def makeOpcode(self, va, op=None, arch=envi.ARCH_DEFAULT):
+    def makeOpcode(self, va, op=None, arch=None):
         """
         Create a single opcode location.  If you have already parsed the
         opcode object, you may pass it in.
@@ -954,7 +954,7 @@ class VivWorkspace(e_mem.MemoryObject, viv_base.VivWorkspaceCore):
 
         return loc
 
-    def makeCode(self, va, arch=envi.ARCH_DEFAULT):
+    def makeCode(self, va, arch=None):
         """
         Attempt to begin code-flow based disassembly by
         starting at the given va.  The va will be made into
@@ -966,13 +966,6 @@ class VivWorkspace(e_mem.MemoryObject, viv_base.VivWorkspaceCore):
             return
 
         calls_from = self.cfctx.addCodeFlow(va, arch=arch)
-
-    def previewCode(self, va, arch=envi.ARCH_DEFAULT):
-        '''
-        Show the repr of an instruction in the current canvas *before* making it that
-        '''
-        op = self.parseOpcode(va, arch)
-        self.vprint("0x%x  (%d bytes)  %s" % (va, len(op), repr(op)))
 
     #################################################################
     #
@@ -1004,7 +997,7 @@ class VivWorkspace(e_mem.MemoryObject, viv_base.VivWorkspaceCore):
             return cbtup[CB_FUNCVA]
         return None
 
-    def makeFunction(self, va, meta=None, arch=envi.ARCH_DEFAULT):
+    def makeFunction(self, va, meta=None, arch=None):
         """
         Do parsing for function information and add a new function doodad.
         This function should probably only be called once code-flow for the

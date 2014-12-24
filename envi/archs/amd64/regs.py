@@ -41,101 +41,100 @@ amd64regs = [
     ("eflags", 32), ("rip", 64),
 ]
 
-# Build up a set of accessable constants
-l = locals()
-e_reg.addLocalEnums(l, amd64regs)
+## Build up a set of accessable constants
+#l = locals()
+#e_reg.addLocalEnums(l, amd64regs)
 
-amd64meta = [
-    ("eax", REG_RAX, 0, 32),
-    ("ecx", REG_RCX, 0, 32),
-    ("edx", REG_RDX, 0, 32),
-    ("ebx", REG_RBX, 0, 32),
-    ("esp", REG_RSP, 0, 32),
-    ("ebp", REG_RBP, 0, 32),
-    ("esi", REG_RSI, 0, 32),
-    ("edi", REG_RDI, 0, 32),
+#amd64meta = [
+    #("eax", REG_RAX, 0, 32),
+    #("ecx", REG_RCX, 0, 32),
+    #("edx", REG_RDX, 0, 32),
+    #("ebx", REG_RBX, 0, 32),
+    #("esp", REG_RSP, 0, 32),
+    #("ebp", REG_RBP, 0, 32),
+    #("esi", REG_RSI, 0, 32),
+    #("edi", REG_RDI, 0, 32),
 
-    ("ax", REG_RAX, 0, 16),
-    ("cx", REG_RCX, 0, 16),
-    ("dx", REG_RDX, 0, 16),
-    ("bx", REG_RBX, 0, 16),
-    ("sp", REG_RSP, 0, 16),
-    ("bp", REG_RBP, 0, 16),
-    ("si", REG_RSI, 0, 16),
-    ("di", REG_RDI, 0, 16),
+    #("ax", REG_RAX, 0, 16),
+    #("cx", REG_RCX, 0, 16),
+    #("dx", REG_RDX, 0, 16),
+    #("bx", REG_RBX, 0, 16),
+    #("sp", REG_RSP, 0, 16),
+    #("bp", REG_RBP, 0, 16),
+    #("si", REG_RSI, 0, 16),
+    #("di", REG_RDI, 0, 16),
 
-    ("al", REG_RAX, 0, 8),
-    ("cl", REG_RCX, 0, 8),
-    ("dl", REG_RDX, 0, 8),
-    ("bl", REG_RBX, 0, 8),
+    #("al", REG_RAX, 0, 8),
+    #("cl", REG_RCX, 0, 8),
+    #("dl", REG_RDX, 0, 8),
+    #("bl", REG_RBX, 0, 8),
 
-    ("ah", REG_RAX, 8, 8),
-    ("ch", REG_RCX, 8, 8),
-    ("dh", REG_RDX, 8, 8),
-    ("bh", REG_RBX, 8, 8),
+    #("ah", REG_RAX, 8, 8),
+    #("ch", REG_RCX, 8, 8),
+    #("dh", REG_RDX, 8, 8),
+    #("bh", REG_RBX, 8, 8),
 
     # NOTE: with a REX prefix, all ah/ch regs get
     # mapped back to being sil/dil etc...
-    ("spl", REG_RSP, 0, 8),
-    ("bpl", REG_RBP, 0, 8),
-    ("sil", REG_RSI, 0, 8),
-    ("dil", REG_RDI, 0, 8),
+    #("spl", REG_RSP, 0, 8),
+    #("bpl", REG_RBP, 0, 8),
+    #("sil", REG_RSI, 0, 8),
+    #("dil", REG_RDI, 0, 8),
 
     # The new GP regs are accessible in all modes.
-    ("r8d",  REG_R8,  0, 32),
-    ("r9d",  REG_R9,  0, 32),
-    ("r10d", REG_R10, 0, 32),
-    ("r11d", REG_R11, 0, 32),
-    ("r12d", REG_R12, 0, 32),
-    ("r13d", REG_R13, 0, 32),
-    ("r14d", REG_R14, 0, 32),
-    ("r15d", REG_R15, 0, 32),
+    #("r8d",  REG_R8,  0, 32),
+    #("r9d",  REG_R9,  0, 32),
+    #("r10d", REG_R10, 0, 32),
+    #("r11d", REG_R11, 0, 32),
+    #("r12d", REG_R12, 0, 32),
+    #("r13d", REG_R13, 0, 32),
+    #("r14d", REG_R14, 0, 32),
+    #("r15d", REG_R15, 0, 32),
 
-    ("r8w",  REG_R8,  0, 16),
-    ("r9w",  REG_R9,  0, 16),
-    ("r10w", REG_R10, 0, 16),
-    ("r11w", REG_R11, 0, 16),
-    ("r12w", REG_R12, 0, 16),
-    ("r13w", REG_R13, 0, 16),
-    ("r14w", REG_R14, 0, 16),
-    ("r15w", REG_R15, 0, 16),
+    #("r8w",  REG_R8,  0, 16),
+    #("r9w",  REG_R9,  0, 16),
+    #("r10w", REG_R10, 0, 16),
+    #("r11w", REG_R11, 0, 16),
+    #("r12w", REG_R12, 0, 16),
+    #("r13w", REG_R13, 0, 16),
+    #("r14w", REG_R14, 0, 16),
+    #("r15w", REG_R15, 0, 16),
 
-    ("r8l",  REG_R8,  0, 8),
-    ("r9l",  REG_R9,  0, 8),
-    ("r10l", REG_R10, 0, 8),
-    ("r11l", REG_R11, 0, 8),
-    ("r12l", REG_R12, 0, 8),
-    ("r13l", REG_R13, 0, 8),
-    ("r14l", REG_R14, 0, 8),
-    ("r15l", REG_R15, 0, 8),
+    #("r8l",  REG_R8,  0, 8),
+    #("r9l",  REG_R9,  0, 8),
+    #("r10l", REG_R10, 0, 8),
+    #("r11l", REG_R11, 0, 8),
+    #("r12l", REG_R12, 0, 8),
+    #("r13l", REG_R13, 0, 8),
+    #("r14l", REG_R14, 0, 8),
+    #("r15l", REG_R15, 0, 8),
 
-    ("xmm0", REG_YMM0, 0, 128),
-    ("xmm1", REG_YMM1, 0, 128),
-    ("xmm2", REG_YMM2, 0, 128),
-    ("xmm3", REG_YMM3, 0, 128),
-    ("xmm4", REG_YMM4, 0, 128),
-    ("xmm5", REG_YMM5, 0, 128),
-    ("xmm6", REG_YMM6, 0, 128),
-    ("xmm7", REG_YMM7, 0, 128),
-    ("xmm8", REG_YMM8, 0, 128),
-    ("xmm9", REG_YMM9, 0, 128),
-    ("xmm10", REG_YMM10, 0, 128),
-    ("xmm11", REG_YMM11, 0, 128),
-    ("xmm12", REG_YMM12, 0, 128),
-    ("xmm13", REG_YMM13, 0, 128),
-    ("xmm14", REG_YMM14, 0, 128),
-    ("xmm15", REG_YMM15, 0, 128),
-
-]
+    #("xmm0", REG_YMM0, 0, 128),
+    #("xmm1", REG_YMM1, 0, 128),
+    #("xmm2", REG_YMM2, 0, 128),
+    #("xmm3", REG_YMM3, 0, 128),
+    #("xmm4", REG_YMM4, 0, 128),
+    #("xmm5", REG_YMM5, 0, 128),
+    #("xmm6", REG_YMM6, 0, 128),
+    #("xmm7", REG_YMM7, 0, 128),
+    #("xmm8", REG_YMM8, 0, 128),
+    #("xmm9", REG_YMM9, 0, 128),
+    #("xmm10", REG_YMM10, 0, 128),
+    #("xmm11", REG_YMM11, 0, 128),
+    #("xmm12", REG_YMM12, 0, 128),
+    #("xmm13", REG_YMM13, 0, 128),
+    #("xmm14", REG_YMM14, 0, 128),
+    #("xmm15", REG_YMM15, 0, 128),
+#]
 
 statmetas = []
 # have to rebuild this because the register index is different inside this
 # scope.  rebuild with the REG_EFLAGS index inside this module.
-for name, idx, offset, width, desc in e_i386.statmetas:
-    statmetas.append( (name, REG_EFLAGS, offset, width, desc) )
+#for name, idx, offset, width, desc in e_i386.statmetas:
+    #statmetas.append( (name, REG_EFLAGS, offset, width, desc) )
 
-e_reg.addLocalStatusMetas(l, amd64meta, statmetas, 'EFLAGS')
-e_reg.addLocalMetas(l, amd64meta)
+#e_reg.addLocalStatusMetas(l, amd64meta, statmetas, 'EFLAGS')
+#e_reg.addLocalMetas(l, amd64meta)
 
 RMETA_LOW32 = 0x00200000
 

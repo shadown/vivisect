@@ -48,8 +48,8 @@ for modenum in modes[1:]:       # skip first since we're already done
     reg_data.append((msname+"_SPSR", 32))
 # done with banked register translation table
 
-l = locals()
-e_reg.addLocalEnums(l, arm_regs)
+#l = locals()
+#e_reg.addLocalEnums(l, arm_regs)
 
 PSR_N = 31  # negative
 PSR_Z = 30  # zero

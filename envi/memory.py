@@ -60,33 +60,36 @@ class IMemory:
     be faster than the default implementation, DO IT!
     """
 
-    def __init__(self, arch=None):
-        self.imem_psize = struct.calcsize('P')
-        self.imem_archs = envi.getArchModules()
-        if arch != None:
-            self.setMemArchitecture(arch)
+    def __init__(self, arch):
+        self.arch = arch
+        self.archinfo = envi.getArchInfo(arch)
+        # pre-optimize since *everything* wants this...
+        self.ptrsize  = self.archinfo.get('ptrsize')
+        #self.imem_archs = envi.getArchModules()
+        #if arch != None:
+            #self.setMemArchitecture(arch)
 
-    def setMemArchitecture(self, arch):
-        '''
-        Set the hardware architecture for the current memory object.
-        ( this controls things like pointer size, and opcode decoding )
+    #def setMemArchitecture(self, arch):
+        #'''
+        #Set the hardware architecture for the current memory object.
+        #( this controls things like pointer size, and opcode decoding )
 
-        Example:
-            import envi
-            mem.setMemArchitecture( envi.ARCH_I386 )
-        '''
-        archmod = self.imem_archs[arch >> 16]
-        self.imem_archs[envi.ARCH_DEFAULT] = archmod
-        self.imem_psize = archmod.getPointerSize()
+        #Example:
+            #import envi
+            #mem.setMemArchitecture( envi.ARCH_I386 )
+        #'''
+        #archmod = self.imem_archs[arch >> 16]
+        #self.imem_archs[envi.ARCH_DEFAULT] = archmod
+        #self.imem_psize = archmod.getPointerSize()
 
-    def getMemArchModule(self, arch=envi.ARCH_DEFAULT):
-        '''
-        Get a reference to the default arch module for the memory object.
-        '''
-        return self.imem_archs[ arch >> 16 ]
+    #def getMemArchModule(self, arch=envi.ARCH_DEFAULT):
+        #'''
+        #Get a reference to the default arch module for the memory object.
+        #'''
+        #return self.imem_archs[ arch >> 16 ]
 
-    def getPointerSize(self):
-        return self.imem_psize
+    #def getPointerSize(self):
+        #return self.imem_psize
 
     def readMemory(self, va, size):
         """
@@ -97,7 +100,7 @@ class IMemory:
         """
         raise Exception("must implement readMemory!")
 
-    def writeMemory(self, va, bytes):
+    def writeMemory(self, va, bytez):
         """
         Write the given bytes to the specified virtual address.
 
@@ -146,9 +149,9 @@ class IMemory:
     def readMemoryFormat(self, va, fmt):
         # Somehow, pointers are "signed" when they
         # get chopped up by python's struct package
-        if self.imem_psize == 4:
+        if self.ptrsize == 4:
             fmt = fmt.replace("P","I")
-        elif self.imem_psize == 8:
+        elif self.ptrsize == 8:
             fmt = fmt.replace("P","Q")
 
         size = struct.calcsize(fmt)
@@ -181,7 +184,7 @@ class IMemory:
         Example:
             ptr = t.readMemoryPtr(addr)
         '''
-        return self.readMemValue(va, self.imem_psize)
+        return self.readMemValue(va, self.ptrsize)
 
     def writeMemoryFormat(self, va, fmt, *args):
         '''
@@ -191,9 +194,9 @@ class IMemory:
         Example:
             trace.writeMemoryFormat(va, '<PBB', 10, 30, 99)
         '''
-        if self.imem_psize == 4:
+        if self.ptrsize == 4:
             fmt = fmt.replace("P","I")
-        elif self.imem_psize == 8:
+        elif self.ptrsize == 8:
             fmt = fmt.replace("P","Q")
         mbytes = struct.pack(fmt, *args)
         self.writeMemory(va, mbytes)
@@ -290,7 +293,7 @@ class IMemory:
 
         return results
 
-    def parseOpcode(self, va, arch=envi.ARCH_DEFAULT):
+    def parseOpcode(self, va, arch=None):
         '''
         Parse an opcode from the specified virtual address.
 
@@ -388,8 +391,6 @@ class MemoryObject(IMemory):
         IMemory.__init__(self, arch=arch)
         self._map_defs = []
 
-    #FIXME MemoryObject: def allocateMemory(self, size, perms=MM_RWX, suggestaddr=0):
-
     def addMemoryMap(self, va, perms, fname, bytez):
         '''
         Add a memory map to this object...
@@ -484,9 +485,9 @@ class MemoryFile:
         self.offset += size
         return ret
 
-    def write(self, bytes):
-        self.memobj.writeMemory(self.offset, bytes)
-        self.offset += len(bytes)
+    def write(self, bytez):
+        self.memobj.writeMemory(self.offset, bytez)
+        self.offset += len(bytez)
 
 
 def memdiff(bytes1, bytes2):

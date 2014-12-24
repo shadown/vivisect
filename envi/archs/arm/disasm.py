@@ -1292,7 +1292,7 @@ endian_names = ("le","be")
 #FIXME IF_NOFALL (and other envi flags)
 
 class ArmOpcode(envi.Opcode):
-    _def_arch = envi.ARCH_ARMV7
+    #_def_arch = envi.ARCH_ARMV7
 
     def __hash__(self):
         return int(hash(self.mnem) ^ (self.size << 4))

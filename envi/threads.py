@@ -6,6 +6,22 @@ import threading
 import functools
 import collections
 
+def tlsget(name,ctor):
+    thr = threading.currentThread()
+    loc = getattr(thr,'loc',None)
+    if loc == None:
+        thr.loc = {}
+    if not thr.loc.has_key(name):
+        thr.loc[name] = ctor()
+    return thr.loc.get(name)
+
+def tlsdel(name):
+    thr = threading.currentThread()
+    loc = getattr(thr,'loc',None)
+    if loc == None:
+        return
+    return loc.pop(name,None)
+
 def firethread(func):
     '''
     A decorator which fires a thread to do the given call.

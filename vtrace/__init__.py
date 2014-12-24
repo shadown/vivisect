@@ -44,6 +44,7 @@ import traceback
 import cPickle as pickle
 
 import envi
+import envi.cpu as e_cpu
 import envi.bits as e_bits
 import envi.memory as e_mem
 import envi.registers as e_reg
@@ -110,56 +111,34 @@ class AccessViolation(Exception):
         self.perm = perm
         Exception.__init__(self, "AccessViolation at 0x%.8x (%d)" % (va, perm))
 
-class Trace(e_mem.IMemory, e_reg.RegisterContext, e_resolv.SymbolResolver, object):
+class Trace(e_cpu.Cpu, e_resolv.SymbolResolver, object):
     """
     The main tracer object.  A trace instance is dynamically generated using
     this and *many* potential mixin classes.  However, API users should *not*
-    worry about the methods that come from the mixins...  Everything that is
-    *meant* to be used from the API is contained and documented here.
+    worry about the methods that come from the mixins...
     """
-    def __init__(self):#, archname=None):
+    def __init__(self, wire=None):#, archname=None):
 
         self.pid = None
-        self.tid = None
         self.sig = None
 
-        # The universal place for all modes
-        # that might be platform dependant...
-        #self.notifiers = {}
+        #self.tid = None # this comes from e_cpu.Cpu
 
-        # For all transient data (if notifiers want
-        # to track stuff per-trace
+        self.wire = wire
+        if self.wire == None:
+            self.wire = self._plat_getwire()
 
-        #self.initMode("RunForever", False, "Run until RunForever = False")
-        #self.initMode("NonBlocking", False, "A call to wait() fires a thread to wait *for* you")
-        #self.initMode("ThreadProxy", True, "Proxy necessary requests through a single thread (can deadlock...)")
-        #self.initMode("SingleStep", False, "All calls to run() actually just step.  This allows RunForever + SingleStep to step forever ;)")
-        #self.initMode("FastStep", False, "All stepi() will NOT generate a step event")
+        arch = self.wire.arch()
 
-        #self.regcache = None
-        #self.regcachedirty = False
+        self.plat = self.wire.plat()
+        self.platver = self.wire.platver()
+
+        e_cpu.Cpu.__init__(self, arch)
         self.sus_threads = {}   # A dictionary of suspended threads
 
-        # Set if we're a server and this trace is proxied
-        #self.proxy = None
-
-        # Set us up with an envi arch module
-        # FIXME eventually we should just inherit one...
-        #if archname == None:
-            #archname = envi.getCurrentArch()
-
-        #arch = envi.getArchByName( archname )
-        #self.setMeta('Architecture', archname)
-        #self.arch = envi.getArchModule(name=archname)
-
-        arch = envi.getArchByName( self.archname )
-
-        #self.arch = envi.getArchModule( name=self.archname )
-        #self.imem_psize = self.arch.getPointerSize()
-
-        e_resolv.SymbolResolver.__init__(self, width=self.archsize)
-        e_mem.IMemory.__init__(self, arch=arch)
-        e_reg.RegisterContext.__init__(self)
+        #e_resolv.SymbolResolver.__init__(self, width=self.archinfo.get('ptrsize'))
+        #e_mem.IMemory.__init__(self, arch=self.arch)
+        #e_reg.RegisterContext.__init__(self, self.arch)
 
         # Add event numbers to here for auto-continue
         #self.auto_continue = [NOTIFY_LOAD_LIBRARY, NOTIFY_CREATE_THREAD, NOTIFY_UNLOAD_LIBRARY, NOTIFY_EXIT_THREAD, NOTIFY_DEBUG_PRINT]
@@ -169,28 +148,31 @@ class Trace(e_mem.IMemory, e_reg.RegisterContext, e_resolv.SymbolResolver, objec
         Execute a new process from the given command.
         """
         self.pid = self._plat_exec(cmdline)
-        self.attached = True
         self.metadata['cmdline'] = cmdline
         self._hook_fire('procinit',{'pid':self.pid,'cmdline':cmdline})
 
-    def parseOpcodes(self, num, va=None):
-        '''
-        Returns next num of linear disasm'd opcodes objects.  Optionally pass
-        a va to start there instead of the current program counter.
-        '''
-        if num <= 0:
-            raise Exception('you must specify a positive number of opcodes')
+        # we may have an autocont on procinit...
+        if self.wantrun():
+            self.run()
 
-        if va == None:
-            va = self.getProgramCounter()
+    #def parseOpcodes(self, num, va=None):
+        #'''
+        #Returns next num of linear disasm'd opcodes objects.  Optionally pass
+        #a va to start there instead of the current program counter.
+        #'''
+        #if num <= 0:
+            #raise Exception('you must specify a positive number of opcodes')
 
-        ops = []
-        for i in xrange(0, num):
-            op = self.parseOpcode(va)
-            ops.append(op)
-            va += op.size
+        #if va == None:
+            #va = self.getProgramCounter()
 
-        return ops
+        #ops = []
+        #for i in xrange(0, num):
+            #op = self.parseOpcode(va)
+            #ops.append(op)
+            #va += op.size
+
+        #return ops
 
     def getCurSignal(self):
         '''
@@ -242,7 +224,9 @@ class Trace(e_mem.IMemory, e_reg.RegisterContext, e_resolv.SymbolResolver, objec
         Attach to a new process ID.
         """
         self._plat_attach(pid)
-        self.attached = True
+
+        self.pid = pid
+        self._hook_fire('procinit',{'pid':pid})
 
         # we may have an autocont on procinit...
         if self.wantrun():
@@ -259,7 +243,7 @@ class Trace(e_mem.IMemory, e_reg.RegisterContext, e_resolv.SymbolResolver, objec
         '''
         Check for conditions that would cause/prevent continued execution.
         '''
-        if not self.attached:
+        if self.pid == None:
             return False
 
         if self.exitcode != None:
@@ -291,8 +275,16 @@ class Trace(e_mem.IMemory, e_reg.RegisterContext, e_resolv.SymbolResolver, objec
 
         self.runagain = True
         while self.wantrun():
+            # check for pended hook events
+            if self.hookpends:
+                self._hook_fire( *self.hookpends.popleft() )
+                continue
+
             self._sync_torun()
             self.running = True
+
+            #self._hook_fire("continue",{'pid':self.pid,'sig':self.sig})
+
             self._plat_run()
             self.running = False
 
@@ -306,44 +298,8 @@ class Trace(e_mem.IMemory, e_reg.RegisterContext, e_resolv.SymbolResolver, objec
         if bi != None and bi.get('enabled'):
             self.stepi()
 
-        self._write_breakpoints()
+        self._write_breaks()
         self._sync_cache()
-
-    def getpc(self):
-        '''
-        Terse version of getProgramCounter()
-        '''
-        return self.getProgramCounter()
-
-    def getsp(self):
-        '''
-        Terse version of getStackCounter()
-        '''
-        return self.getStackCounter()
-
-    def getreg(self, name):
-        '''
-        Terse version of getRegsiterByName()
-        '''
-        return self.getRegisterByName(name)
-
-    def setreg(self, name, valu):
-        '''
-        Terse version of setRegisterByName()
-        '''
-        return self.setRegisterByName(name,valu)
-
-    def getmem(self, va, size):
-        '''
-        Terse version of readMemory()
-        '''
-        return self.readMemory(va,size)
-
-    def setmem(self, va, bytez):
-        '''
-        Terse version of writeMemory()
-        '''
-        return self.writeMemory(va,bytez)
 
     def kill(self):
         """
@@ -357,16 +313,25 @@ class Trace(e_mem.IMemory, e_reg.RegisterContext, e_resolv.SymbolResolver, objec
         Detach from the currently attached process.
         '''
         self._sync_cache()
-        self._plat_detach() #platformDetach()
-        self.attached = False
 
-    def release(self):
+        tids = self.threads.keys()
+        for tid in tids:
+            self._hook_fire('threadfini',{'tid':tid})
+
+        self._hook_fire('procfini',{'pid':self.pid})
+
+        self._plat_detach()
+
+        self.pid = None
+        self.shutCpuCtx()
+
+    #def release(self):
         #'''
         #Release resources for this tracer.  This API should be called
         #once you are done with the trace.
         #'''
-        if not self.released:
-            self.released = True
+        #if not self.released:
+            #self.released = True
             #self.released = True
             #if self.attached:
                 #self.detach()
@@ -379,15 +344,15 @@ class Trace(e_mem.IMemory, e_reg.RegisterContext, e_resolv.SymbolResolver, objec
         """
         return self.pid
 
-    def getNormalizedLibNames(self):
-        """
-        Symbols are stored internally based off of
-        "normalized" library names.  This method returns
-        the list of normalized names for the loaded libraries.
-
-        (probably only useful for writting symbol browsers...)
-        """
-        return self.getMeta("LibraryBases").keys()
+    #def getNormalizedLibNames(self):
+        #"""
+        #Symbols are stored internally based off of
+        #"normalized" library names.  This method returns
+        #the list of normalized names for the loaded libraries.
+#
+        #(probably only useful for writting symbol browsers...)
+        #"""
+        #return self.getMeta("LibraryBases").keys()
 
     def getSymsForFile(self, libname):
         """
@@ -401,68 +366,84 @@ class Trace(e_mem.IMemory, e_reg.RegisterContext, e_resolv.SymbolResolver, objec
             raise Exception('Invalid Library Name: %s' % libname)
         return sym.getSymList()
 
-    def getSymByAddr(self, addr, exact=True):
+    def getSymByAddr(self, addr):
         """
-        Return an envi Symbol object for an address.
-        Use exact=False to get the nearest previous match.
+        Return an envi symbol tuple (or None) for the given address.
+
+        NOTE: (addr,size,name,type) (see SYM_* in envi/const.py for types)
         """
-        # NOTE: Override this from envi.SymbolResolver to do on-demand
-        # file parsing.
-
-        r = e_resolv.SymbolResolver.getSymByAddr(self, addr, exact=exact)
-        if r != None:
-            return r
-
-        # See if we need to parse the file.
-        mmap = self.getMemoryMap(addr)
-        if mmap == None:
-            return None
-
-        va, size, perms, fname = mmap
-
-        if not self._loadBinary(fname):
-            return None
-
-        # Take a second shot after parsing
-        return e_resolv.SymbolResolver.getSymByAddr(self, addr, exact=exact)
-
-    def getSymByAddrThunkAware(self, va):
-        '''
-        TODO: DO NOT USE THIS FUNCTION, GOING AWAY.
-        getBestSymEtc? depth / aggressiveness?
-
-        for the given va:
-        1. attempt to get the sym by using getSymByAddr
-        2. if 1 fails, check the target of the branch for a sym.
-
-        returns a tuple (sym, is_thunk).  sym is None if no sym is found.
-        '''
-        sym = self.getSymByAddr(va)
-        if sym != None:
-            return str(sym), False
-
-        try:
-            op = self.parseOpcode(va)
-            for tva, tflags in op.getTargets(emu=self):
-                if tva == None:
-                    continue
-
-                sym = self.getSymByAddr(tva)
-                if sym != None:
-                    return str(sym), True
-
-        except Exception as e:
-            # getTargets->readMemory error on bva
-            print('getSymByAddrThunkAware: %s' % repr(e))
-
-        return None, False
+        return self.symcache.getSymByAddr(addr)
 
     def getSymByName(self, name):
         """
-        Return an envi.Symbol object for the given name (or None)
+        Return an envi symbol tuple (or None) for the given name.
+
+        NOTE: (addr,size,name,type) (see SYM_* in envi/const.py for types)
         """
-        self._loadBinaryNorm(name)
-        return e_resolv.SymbolResolver.getSymByName(self, name)
+        return self.symcache.getSymByName(addr)
+
+    #def getSymByAddr(self, addr, exact=True):
+        #"""
+        #Return an envi Symbol object for an address.
+        #Use exact=False to get the nearest previous match.
+        #"""
+        # NOTE: Override this from envi.SymbolResolver to do on-demand
+        # file parsing.
+#
+        #r = e_resolv.SymbolResolver.getSymByAddr(self, addr, exact=exact)
+        #if r != None:
+            #return r
+
+        # See if we need to parse the file.
+        #mmap = self.getMemoryMap(addr)
+        #if mmap == None:
+            #return None
+
+        #va, size, perms, fname = mmap
+
+        #if not self._loadBinary(fname):
+            #return None
+
+        # Take a second shot after parsing
+        #return e_resolv.SymbolResolver.getSymByAddr(self, addr, exact=exact)
+
+    #def getSymByAddrThunkAware(self, va):
+        #'''
+        #TODO: DO NOT USE THIS FUNCTION, GOING AWAY.
+        #getBestSymEtc? depth / aggressiveness?
+
+        #for the given va:
+        #1. attempt to get the sym by using getSymByAddr
+        #2. if 1 fails, check the target of the branch for a sym.
+
+        #returns a tuple (sym, is_thunk).  sym is None if no sym is found.
+        #'''
+        #sym = self.getSymByAddr(va)
+        #if sym != None:
+            #return str(sym), False
+
+        #try:
+            #op = self.parseOpcode(va)
+            #for tva, tflags in op.getTargets(emu=self):
+                #if tva == None:
+                    #continue
+
+                #sym = self.getSymByAddr(tva)
+                #if sym != None:
+                    #return str(sym), True
+
+        #except Exception as e:
+            ## getTargets->readMemory error on bva
+            #print('getSymByAddrThunkAware: %s' % repr(e))
+
+        #return None, False
+
+    #def getSymByName(self, name):
+        #"""
+        #Return an envi.Symbol object for the given name (or None)
+        #"""
+        #self._loadBinaryNorm(name)
+        #return e_resolv.SymbolResolver.getSymByName(self, name)
 
     def setSymCachePath(self, path):
         '''
@@ -478,49 +459,51 @@ class Trace(e_mem.IMemory, e_reg.RegisterContext, e_resolv.SymbolResolver, objec
         '''
         self.symcache = e_symcache.SymbolCachePath(path)
 
-    def searchSymbols(self, regex, libname=None):
-        '''
-        Search for symbols which match the given regular expression.  Specify
-        libname as the "normalized" library name to only search the specified
-        lib.
+    #def searchSymbols(self, regex, libname=None):
+        #'''
+        #Search for symbols which match the given regular expression.  Specify
+        #libname as the "normalized" library name to only search the specified
+        #lib.
 
-        Example:  for sym in trace.searchSymbols('.*CreateFile.*', 'kernel32'):
-        '''
-        reobj = re.compile(regex)
-        if libname != None:
-            libs = [libname, ]
-        else:
-            libs = self.getNormalizedLibNames()
+        #Example:  for sym in trace.searchSymbols('.*CreateFile.*', 'kernel32'):
+        #'''
+        #reobj = re.compile(regex)
+        #if libname != None:
+            #libs = [libname, ]
+        #else:
+            #libs = self.getNormalizedLibNames()
 
-        ret = []
-        for lname in libs:
-            for sym in self.getSymsForFile(lname):
-                symstr = str(sym)
-                if reobj.match(symstr):
-                    ret.append(sym)
-        return ret
+        #ret = []
+        #for lname in libs:
+            #for sym in self.getSymsForFile(lname):
+                #symstr = str(sym)
+                #if reobj.match(symstr):
+                    #ret.append(sym)
+        #return ret
 
-    def getRegisterContext(self, tid=None):
-        """
-        Retrieve the envi.registers.RegisterContext object for the
-        specified thread.  Use this API to iterate over threads
-        register values without setting the global tracer thread context.
-        """
-        if tid == None:
-            tid = self.tid
+    #def getRegisterContext(self, tid=None):
+        #"""
+        #Retrieve the envi RegisterContext object for the specified thread.
+        #Use this API to iterate over threads register values without setting
+        #the global tracer thread context.
+        #"""
+        #print 'HI' * 100
+        #if tid == None:
+            #tid = self.tid
 
-        regcache = self.cache.get('regs')
-        if regcache == None:
-            regcache = {}
-            self.cache['regs'] = regcache
+        #regcache = self._get_cached('regs',dict)
+        #regcache = self.cache.get('regs')
+        #if regcache == None:
+            #regcache = {}
+            #self.cache['regs'] = regcache
 
-        regctx = regcache.get(tid)
-        if regctx == None:
-            regctx = self._plat_getregctx(tid)
-            regctx.setIsDirty(False)
-            regcache[tid] = regctx
+        #regctx = regcache.get(tid)
+        #if regctx == None:
+            #regctx = self._plat_getregctx(tid)
+            #regctx.setIsDirty(False)
+            #regcache[tid] = regctx
 
-        return regctx
+        #return regctx
 
 #######################################################################
 #
@@ -530,13 +513,13 @@ class Trace(e_mem.IMemory, e_reg.RegisterContext, e_resolv.SymbolResolver, objec
 # higher level APIs call them.
 #
 
-    def getRegister(self, idx):
-        ctx = self.getRegisterContext()
-        return ctx.getRegister(idx)
+    #def getRegister(self, idx):
+        #ctx = self.getRegisterContext()
+        #return ctx.getRegister(idx)
 
-    def setRegister(self, idx, value):
-        ctx = self.getRegisterContext()
-        ctx.setRegister(idx, value)
+    #def setRegister(self, idx, value):
+        #ctx = self.getRegisterContext()
+        #ctx.setRegister(idx, value)
 
 #######################################################################
 
@@ -549,8 +532,9 @@ class Trace(e_mem.IMemory, e_reg.RegisterContext, e_resolv.SymbolResolver, objec
         address to the allocator, but there is no guarentee.  Returns the
         mapped memory address.
         """
+        addr = self._plat_memalloc(size, perms=perms, addr=addr)
         self.cache.pop('memmaps',None)
-        return self._plat_memalloc(size, perms=perms, addr=addr)
+        return addr
 
     def protectMemory(self, addr, size, perms):
         """
@@ -558,8 +542,8 @@ class Trace(e_mem.IMemory, e_reg.RegisterContext, e_resolv.SymbolResolver, objec
 
         See envi.memory for perms values.
         """
+        self._plat_memprotect(addr, size, perms)
         self.cache.pop('memmaps',None)
-        return self._plat_memprotect(addr, size, perms)
 
     def readMemory(self, address, size):
         """
@@ -654,6 +638,7 @@ class Trace(e_mem.IMemory, e_reg.RegisterContext, e_resolv.SymbolResolver, objec
               within a notifier!
         """
         self._plat_injectso(filename)
+        self.cache.pop('memmaps',None)
 
     def ps(self):
         """
@@ -672,11 +657,12 @@ class Trace(e_mem.IMemory, e_reg.RegisterContext, e_resolv.SymbolResolver, objec
         Example:
             trace.addBreakByExpr('kernel32.CreateFileA + ecx')
         '''
-        try:
-            addr = self.parseExpression(expr)
+        addr = self.parseExpression(expr)
+        if addr != None:
             self.addBreakByAddr(addr,mode=mode,breakfunc=breakfunc)
-        except Exception, e:
-            self.delaybreaks.append( (expr,mode,breakfunc) )
+            return
+
+        self.delaybreaks.append( (expr,mode,breakfunc) )
 
     def _check_delaybreaks(self):
         delays = self.delaybreaks
@@ -707,13 +693,14 @@ class Trace(e_mem.IMemory, e_reg.RegisterContext, e_resolv.SymbolResolver, objec
 
             trace.addBreakByAddr(0x7c770308, breakfunc=breakhit)
         '''
-        info = self.breaks.get(addr)
-        if info == None:
-            info = {'mode':mode,'breakfuncs':[]}
-            self.breaks[addr] = info
+        bp = self.breaks.get(addr)
+        if bp == None:
+            info = {'mode':mode,'breakfuncs':[],'active':False,'enabled':True}
+            bp = (addr,info)
+            self.breaks[addr] = bp
 
         if breakfunc != None:
-            info['breakfuncs'].append(breakfunc)
+            bp[1]['breakfuncs'].append(breakfunc)
 
     def delBreakByAddr(self, addr):
         '''
@@ -721,22 +708,22 @@ class Trace(e_mem.IMemory, e_reg.RegisterContext, e_resolv.SymbolResolver, objec
         '''
         self.breaks.pop(addr,None)
 
-    def setBreakEnabled(self, addr, status):
-        '''
-        Enable/Disable breakpoints.
+    #def setBreakEnabled(self, addr, status):
+        #'''
+        #Enable/Disable breakpoints.
+        #Example:
+            #t.setBreakEnabled(0x41414100,False)
+        #'''
+        #bp = self.breaks.get(addr)
+        #if bp == None:
+            #raise Exception('invalid break addr: 0x%.8x' % addr)
+        #bp[1]['enabled'] = status
 
-        Example:
-            t.setBreakEnabled(0x41414100,False)
-        '''
-        if self.breaks.get(addr) == None:
-            raise Exception('invalid break addr: 0x%.8x' % addr)
-
-        self.breakstatus[addr] = status
-
-    def isBreakEnabled(self, addr):
-        if self.breaks.get(addr) == None:
-            raise Exception('invalid break addr: 0x%.8x' % addr)
-        return self.breakstatus.get(addr,True)
+    #def isBreakEnabled(self, addr):
+        #bp = self.breaks.get(addr)
+        #if bp == None:
+            #raise Exception('invalid break addr: 0x%.8x' % addr)
+        #return bp[1]['enabled']
 
     def call(self, address, args, convention=None):
         """
@@ -756,11 +743,7 @@ class Trace(e_mem.IMemory, e_reg.RegisterContext, e_resolv.SymbolResolver, objec
         """
         Get a list of (fd, type, repr) tuples for open descriptors.
         """
-        fds = self.cache.get('fds')
-        if fds == None:
-            fds = self._plat_getfds()
-            self.cache['fds'] = fds
-        return fds
+        return self._get_cached('fds',self._plat_getfds())
 
     def getMemoryMaps(self):
         """
@@ -770,50 +753,21 @@ class Trace(e_mem.IMemory, e_reg.RegisterContext, e_resolv.SymbolResolver, objec
             for addr,size,perms,file in t.getMemoryMaps():
                 print('%.8x - %s' % (addr,file))
         """
-        mmaps = self.cache.get('mmaps')
-        if mmaps == None:
-            mmaps = self._plat_memmaps()
-            self.cache['mmaps'] = mmaps
-        return mmaps
+        return self._get_cached('mmaps', self._plat_memmaps)
 
-    def getMemoryFault(self):
-        '''
-        If the most receent event is a memory access error, this API will
-        return a tuple of (<addr>, <perm>) on supported platforms.  Otherwise,
-        a (None, None) will result.
+    #def getMemoryFault(self):
+        #'''
+        #If the most receent event is a memory access error, this API will
+        #return a tuple of (<addr>, <perm>) on supported platforms.  Otherwise,
+        #a (None, None) will result.
 
-        Example:
-        import envi.memory as e_mem
-        vaddr, vperm = trace.getMemoryFault()
-        if vaddr != None:
-            print 'Memory Fault At: 0x%.8x (perm: %d)' % (vaddr, vperm)
-        '''
-        return self.platformGetMemFault()
-
-    def isAttached(self):
-        '''
-        Return true or false if this trace's target processing is attached.
-        '''
-        return self.attached
-
-    def isRunning(self):
-        '''
-        Return true or false if this trace's target process is running.
-        '''
-        return self.running
-
-    def hasExited(self):
-        '''
-        Return true or false if this trace's target process has exited.
-        '''
-        return self.exited
-
-    def isRemote(self):
-        '''
-        Return true or false if this trace's target process is a CobraProxy
-        object to a trace on another system.
-        '''
-        return False
+        #Example:
+        #import envi.memory as e_mem
+        #vaddr, vperm = trace.getMemoryFault()
+        #if vaddr != None:
+            #print 'Memory Fault At: 0x%.8x (perm: %d)' % (vaddr, vperm)
+        #'''
+        #return self.platformGetMemFault()
 
     #def enableAutoContinue(self, event):
         #"""
@@ -877,17 +831,16 @@ class Trace(e_mem.IMemory, e_reg.RegisterContext, e_resolv.SymbolResolver, objec
         locs = VtraceExpressionLocals(self)
         return long(e_expr.evaluate(expression, locs))
 
-    def sendBreak(self, timeout=None):
+    def sendBreak(self, wait=None):
         """
         Send an asynchronous break signal to the target process.
 
-        If timeout is specified, block until either timeout seconds
+        If wait is specified, block until either <wait> seconds
         or the process has stopped.
         """
-        self.breaking = True
         self.modes['runforever'] = False
 
-        if not wait:
+        if wait == None:
             return self._plat_sendbreak()
 
         evt = threading.Event()
@@ -898,7 +851,7 @@ class Trace(e_mem.IMemory, e_reg.RegisterContext, e_resolv.SymbolResolver, objec
         self.addTraceHook('break',waitbreak)
 
         self._plat_sendbreak()
-        return evt.wait(timeout=timeout)
+        return evt.wait(timeout=wait)
 
     def getStackTrace(self, tid=None):
         """
@@ -922,22 +875,23 @@ class Trace(e_mem.IMemory, e_reg.RegisterContext, e_resolv.SymbolResolver, objec
             self.cache['threads'] = threads
         return threads
 
-    def getCurrentThread(self):
-        '''
-        Return the thread id of the currently selected thread.
-        '''
-        return self.tid
+    #def getCurrentThread(self):
+        #'''
+        #Return the thread id of the currently selected thread.
+        #'''
+        #return self.tid
 
-    def selectThread(self, tid):
-        """
-        Set the "current thread" context to the given thread id.
-        (For example stack traces and register values will depend
-        on the current thread context).  By default the thread
-        responsible for an "interesting event" is selected.
-        """
-        if self.threads.get(tid) == None:
-            raise Exception('invalid thread id: %s' % tid)
-        self.tid = tid
+    # depricated for setCpuCtx()
+    #def selectThread(self, tid):
+        #"""
+        #Set the "current thread" context to the given thread id.
+        #(For example stack traces and register values will depend
+        #on the current thread context).  By default the thread
+        #responsible for an "interesting event" is selected.
+        #"""
+        #if self.threads.get(tid) == None:
+            #raise Exception('invalid thread id: %s' % tid)
+        #self.tid = tid
 
     def isThreadSuspended(self, threadid):
         """
@@ -945,7 +899,7 @@ class Trace(e_mem.IMemory, e_reg.RegisterContext, e_resolv.SymbolResolver, objec
         """
         return self.sus_threads.get(threadid, False)
 
-    def suspendThread(self, tid):
+    def suspend(self, tid):
         """
         Suspend a thread.
         ( thread no longer executes on process continue )
@@ -1057,25 +1011,25 @@ class Trace(e_mem.IMemory, e_reg.RegisterContext, e_resolv.SymbolResolver, objec
         """
         return dict(self.localvars)
 
-    def hex(self, value):
-        """
-        Much like the python hex routine, except this will automatically
-        pad the value's string length out to pointer width.
-        """
-        width = self.arch.getPointerSize()
-        return e_bits.hex(value, width)
+    #def hex(self, value):
+        #"""
+        #Much like the python hex routine, except this will automatically
+        #pad the value's string length out to pointer width.
+        #"""
+        #width = self.arch.getPointerSize()
+        #return e_bits.hex(value, width)
 
-    def buildNewTrace(self):
-        '''
-        Build a new/clean trace "like" this one.  For platforms where a
-        special trace was handed in, this allows initialization of a new one.
-        For most implementations, this is very simple....
+    #def buildNewTrace(self):
+        #'''
+        #Build a new/clean trace "like" this one.  For platforms where a
+        #special trace was handed in, this allows initialization of a new one.
+        #For most implementations, this is very simple....
 
-        Example:
-            if need_another_trace:
-                newt = trace.buildNewTrace()
-        '''
-        return self.__class__()
+        #Example:
+            #if need_another_trace:
+                #newt = trace.buildNewTrace()
+        #'''
+        #return self.__class__()
 
 class VtraceExpressionLocals(e_expr.MemoryExpressionLocals):
     """
@@ -1099,13 +1053,9 @@ class VtraceExpressionLocals(e_expr.MemoryExpressionLocals):
 
     def __getitem__(self, name):
 
-        # Check registers
-        if self.trace.isAttached() and not self.trace.isRunning():
-
-            regs = self.trace.getRegisters()
-            r = regs.get(name, None)
-            if r != None:
-                return r
+        valu = self.trace.getreg(name)
+        if valu != None:
+            return valu
 
         # Check local variables
         locs = self.trace.getVariables()
@@ -1121,7 +1071,7 @@ class VtraceExpressionLocals(e_expr.MemoryExpressionLocals):
         breakpoint code (or similar even processors) to begin
         execution again after event processing...
         '''
-        self.trace.runAgain();
+        self.trace.runagain = True
 
     def frame(self, index):
         """
@@ -1176,6 +1126,15 @@ def reqTargOpt(opts, targ, opt, valstr='<value>'):
         raise Exception('Target "%s" requires option: %s=%s' % (targ, opt, valstr))
     return val
 
+# FIXME PY3
+from urlparse import urlparse
+
+import vtrace.platforms.linux as vt_plat_linux
+
+platarch = {
+    ('linux','amd64'):vt_plat_linux.LinuxAmd64Trace,
+}
+
 def getTrace(target=None):
     """
     Return a tracer object appropriate for this platform.
@@ -1201,6 +1160,18 @@ def getTrace(target=None):
     arch = envi.getCurrentArch()
     plat = envi.getCurrentPlat()
 
+    if target != None:
+        url = urlparse(target)
+
+        if url.scheme == 'wire':
+            wire = WireProto(target)
+            arch = wire.arch()
+            plat = wire.plat()
+
+        #if url.scheme == 'gdb':
+        #if url.scheme == 'vmware':
+
+
     #if target:
     #if target == 'gdbserver':
         #host = reqTargOpt(kwargs, 'gdbserver', 'host', '<host>')
@@ -1223,61 +1194,62 @@ def getTrace(target=None):
 
         #return vt_vmware.VMWare32WindowsTrace( host=host, port=port )
 
-    #if remote: #We have a remote server!
-        #return getRemoteTrace()
 
-    # From here down, we're trying to build a trace for *this* platform!
-    import vtrace.platforms.linux as vt_plat_linux
+    cls = platarch.get( (plat,arch) )
+    if cls == None:
+        raise Exception('no trace for plat: %s arch: %s' % (plat,arch))
 
-    if plat == "windows":
-        if arch == "i386":
-            return v_win32.Windowsi386Trace()
+    return cls(wire=wire)
 
-        if arch == "amd64":
-            return v_win32.WindowsAmd64Trace()
+    #if plat == "windows":
+        #if arch == "i386":
+            #return v_win32.Windowsi386Trace()
 
-    if plat == "linux":
+        #if arch == "amd64":
+            #return v_win32.WindowsAmd64Trace()
 
-        if arch == "i386":
-            return vt_plat_linux.Linuxi386Trace()
+    #if plat == "linux":
 
-        if arch == "amd64":
-            return vt_plat_linux.LinuxAmd64Trace()
+        #if arch == "i386":
+            #return vt_plat_linux.Linuxi386Trace(wire=wire)
 
-        if arch in ("armv6l","armv7l"):
-            return vt_plat_linux.LinuxArmTrace()
+        #if arch == "amd64":
+            #return vt_plat_linux.LinuxAmd64Trace(wire=wire)
 
-    if plat == 'freebsd':
+        #if arch in ("armv6l","armv7l"):
+            #return vt_plat_linux.LinuxArmTrace(wire=wire)
 
-        if arch == "i386":
-            return v_freebsd.FreeBSDi386Trace()
+    #if plat == 'freebsd':
 
-        if arch == "amd64":
-            return v_freebsd.FreeBSDAmd64Trace()
+        #if arch == "i386":
+            #return v_freebsd.FreeBSDi386Trace(wire=wire)
 
-    if plat == 'darwin':
+        #if arch == "amd64":
+            #return v_freebsd.FreeBSDAmd64Trace(wire=wire)
 
-        if arch == 'i386':
-            return v_darwin.Darwini386Trace()
+    #if plat == 'darwin':
 
-        if arch == 'amd64':
-            return v_darwin.DarwinAmd64Trace()
+        #if arch == 'i386':
+            #return v_darwin.Darwini386Trace()
 
-    raise Exception('FIXME need tracer for %s - %s' % (plat,arch))
+        ##if arch == 'amd64':
+            #return v_darwin.DarwinAmd64Trace()
 
-def getEmu(trace, arch=envi.ARCH_DEFAULT):
-    '''
-    See comment for emulator from trace (in envitools); does not set any
-    registers or mem.
+    #raise Exception('FIXME need tracer for %s - %s' % (plat,arch))
 
-    TODO: this really belongs in envitools, or somewhere else, but putting it
-    in envitools causes a circular import problem due to the TraceEmulator.
-    '''
-    if arch == envi.ARCH_DEFAULT:
-        arch_name = trace.getMeta('Architecture')
-    else:
-        arch_name = envi.getArchById(trace.arch)
+#def getEmu(trace, arch=None):
+    #'''
+    #See comment for emulator from trace (in envitools); does not set any
+    #registers or mem.
 
-    arch_mod = envi.getArchModule(arch_name)
-    emu = arch_mod.getEmulator()
-    return emu
+    #TODO: this really belongs in envitools, or somewhere else, but putting it
+    #in envitools causes a circular import problem due to the TraceEmulator.
+    #'''
+    #if arch == envi.ARCH_DEFAULT:
+        #arch_name = trace.getMeta('Architecture')
+    #else:
+        #arch_name = envi.getArchById(trace.arch)
+
+    #arch_mod = envi.getArchModule(arch_name)
+    #emu = arch_mod.getEmulator()
+    #return emu

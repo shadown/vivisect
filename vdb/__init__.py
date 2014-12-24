@@ -181,15 +181,15 @@ class Vdb(e_cli.EnviMutableCli, v_notif.Notifier, v_util.TraceManager):
         if trace == None:
             trace = vtrace.getTrace()
 
-        arch = trace.getMeta('Architecture')
-        self.arch = envi.getArchModule(arch)
+        #arch = trace.getMeta('Architecture')
+        #self.arch = envi.getArchModule(arch)
 
         self.bpcmds = {}
         self.waitlib = None
         self.difftracks = {}
 
-        self.runcache = {}
-        self.runcachectors = {}
+        #self.runcache = {}
+        #self.runcachectors = {}
 
         self.server = None
         self.autoscript = None
@@ -231,28 +231,28 @@ class Vdb(e_cli.EnviMutableCli, v_notif.Notifier, v_util.TraceManager):
         self.loadDefaultRenderers(trace)
         self.loadExtensions(trace)
 
-    def addRunCacheCtor(self, name, ctor):
-        '''
-        Add a "run cache constructor" which will be used if a RunCacheVar
-        is requested that is not currently cached.  *All* RunCacheVar
-        entries are flushed automagically on run...
+    #def addRunCacheCtor(self, name, ctor):
+        #'''
+        #Add a "run cache constructor" which will be used if a RunCacheVar
+        #is requested that is not currently cached.  *All* RunCacheVar
+        #entries are flushed automagically on run...
 
-        ( Allows db caching of critical structs likely to be parsed
-          more than once by extensions )
-        '''
-        self.runcachectors[name] = ctor
+        #( Allows db caching of critical structs likely to be parsed
+          #more than once by extensions )
+        #'''
+        #self.runcachectors[name] = ctor
 
-    def getRunCacheVar(self, cname):
-        '''
-        Retrieve a variable from the vdb "runcache".  If not currently
-        cached, the object will be constructed and added to the cache
-        so that future references are fast.
-        '''
-        ret = self.runcache.get(cname)
-        if ret == None:
-            ret = self.runcachectors.get(cname)(self)
-            self.runcache[cname] = ret
-        return ret
+    #def getRunCacheVar(self, cname):
+        #'''
+        #Retrieve a variable from the vdb "runcache".  If not currently
+        #cached, the object will be constructed and added to the cache
+        #so that future references are fast.
+        #'''
+        #ret = self.runcache.get(cname)
+        #if ret == None:
+            #ret = self.runcachectors.get(cname)(self)
+            #self.runcache[cname] = ret
+        #return ret
 
     def loadDefaultRenderers(self, trace):
         import envi.memcanvas.renderers as e_render
@@ -281,31 +281,31 @@ class Vdb(e_cli.EnviMutableCli, v_notif.Notifier, v_util.TraceManager):
             archrend = v_rend.OpcodeRenderer( self.trace, arch=archid)
             self.canvas.addRenderer('asm - %s' % archname, archrend)
 
-    def verror(self, msg, addnl=True):
-        if addnl:
-            msg += "\n"
-        sys.stderr.write(msg)
+    #def verror(self, msg, addnl=True):
+        #if addnl:
+            #msg += "\n"
+        #sys.stderr.write(msg)
 
-    def fatalError(self, exception):
-        '''
-        Used for platform exceptions.  This indicates something in the
-        underlying platform failed and continuing to debug is probably not a
-        good idea.
-        '''
-        self.vprint('%s: %s' % ('FATAL ERROR (you probably should restart session', exception))
+    #def fatalError(self, exception):
+        #'''
+        #Used for platform exceptions.  This indicates something in the
+        #underlying platform failed and continuing to debug is probably not a
+        #good idea.
+        #'''
+        #self.vprint('%s: %s' % ('FATAL ERROR (you probably should restart session', exception))
 
-    def vdbUIEvent(self, event, einfo=None):
-        '''
-        Fire a UI event (mostly used by the GUI to force refresh)
+    #def vdbUIEvent(self, event, einfo=None):
+        #'''
+        #Fire a UI event (mostly used by the GUI to force refresh)
 
-        Do *not* fire this API in a tight loop, rather, fire once when
-        changes are complete.
+        #Do *not* fire this API in a tight loop, rather, fire once when
+        #changes are complete.
 
-        NOTE: Events should only be created for notification on
-              events *not* already emitted by the tracer.
-        '''
-        if self.gui != None:
-            self.gui.vdbUIEvent(event, einfo)
+        #NOTE: Events should only be created for notification on
+              #events *not* already emitted by the tracer.
+        #'''
+        #if self.gui != None:
+            #self.gui.vdbUIEvent(event, einfo)
 
     def loadExtensions(self, trace):
         """
@@ -404,7 +404,7 @@ class Vdb(e_cli.EnviMutableCli, v_notif.Notifier, v_util.TraceManager):
         tid = trace.getCurrentThread()
 
         # Any kind of event resets the runcache
-        self.runcache = {}
+        #self.runcache = {}
 
         if event == vtrace.NOTIFY_ATTACH:
             self.vprint("Attached to : %d" % pid)
