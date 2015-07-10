@@ -2,3 +2,5 @@
 *.swp
 *.py~
 .hg*
+lextab.py
+.DS_Store
