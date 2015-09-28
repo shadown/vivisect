@@ -1,10 +1,11 @@
+import vqt.theme as vq_theme
 
 qt_matrix = '''
 
 QWidget {
     background-color: #000000;
     color: #00ff00;
-    font: Courier;
+    font: %dpt %s;
 }
 
 QTextEdit {
@@ -166,7 +167,7 @@ QToolBar {
     border: 2px solid #00802b;
     spacing: 3px; /* spacing between items in toolbar */
 }
-'''
+''' % (vq_theme.font_size+2, vq_theme.font)
 
 defcolors = qt_matrix
 

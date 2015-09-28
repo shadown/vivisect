@@ -3,6 +3,8 @@ The envi.qt.html module contains the HTML template and javascript
 code used by the renderers (which are based on QtWebKit)
 '''
 
+import vqt.theme as vq_theme
+
 template = '''
 <!DOCTYPE html>
 <html id="mainhtml">
@@ -14,7 +16,7 @@ body {
     color: #00ff00;
     background-color: #000000;
     white-space: pre;
-    font: 10pt Monospace;
+    font: %dpt %s;
 }
 
 div.memcanvas {
@@ -134,5 +136,5 @@ function scrolltoid(name) {
 <body id="vbody" width="999px"><div class="memcanvas" id="memcanvas"></div></body>
 
 </html>
-'''
+''' % (vq_theme.font_size, vq_theme.font)
 

@@ -7,6 +7,7 @@ import envi.cli as e_cli
 from vqt.common import ACT
 import vqt.tree as vq_tree
 import envi.memory as e_mem
+import vqt.theme as vq_theme
 
 class VQMemoryMapView(vq_tree.VQTreeView):
 
@@ -28,6 +29,7 @@ class VQMemoryMapView(vq_tree.VQTreeView):
 
     def buildContextMenu(self, va, size):
         menu = QtGui.QMenu()
+        menu.setFont(QtGui.QFont(vq_theme.font, vq_theme.font_size))
         menu.addAction('Copy Bytes To Clipboard', ACT(self.menuCopyBytesToClipboard, va, size))
         menu.addAction('Save Bytes To File', ACT(self.menuSaveBytesToFile, va, size))
         menu.addAction('Search Selected Memory Map', ACT(self.menuSearchMaps, va, size, allmaps=False))
