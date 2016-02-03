@@ -1,7 +1,0 @@
-*.pyc
-*.swp
-*.swo
-*.py~
-.hg*
-lextab.py
-.DS_Store
